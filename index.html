@@ -3,36 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام إدارة مزارع عالم الزيتون - النسخة الثابتة</title>
+    <title>نظام إدارة مزارع عالم الزيتون - النسخة الاحترافية</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root { --primary: #2e7d32; --accent: #fbc02d; --dark: #1b1b1b; --light: #f5f5f5; }
         body { font-family: 'Tajawal', sans-serif; background: var(--dark); color: var(--light); margin: 0; padding: 10px; }
-        .app-container { max-width: 1350px; margin: auto; background: #252525; border-radius: 15px; padding: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .app-container { max-width: 1400px; margin: auto; background: #252525; border-radius: 15px; padding: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         h2 { text-align: center; color: var(--accent); border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
         .section { background: #333; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #444; }
         .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
         select, input, button { padding: 10px; border-radius: 8px; border: none; font-size: 14px; background: #444; color: white; }
         button { background: var(--primary); cursor: pointer; font-weight: bold; }
         .table-wrapper { overflow-x: auto; border-radius: 10px; border: 1px solid #444; margin-top: 10px; }
-        table { width: 100%; border-collapse: collapse; min-width: 1200px; background: #2a2a2a; }
+        table { width: 100%; border-collapse: collapse; min-width: 1250px; background: #2a2a2a; }
         th, td { padding: 8px; text-align: center; border: 1px solid #444; }
-        th { background: var(--primary); position: sticky; top: 0; z-index: 3; }
-        .worker-name { position: sticky; right: 0; background: #333; font-weight: bold; min-width: 170px; z-index: 4; cursor: pointer; border-left: 2px solid var(--accent) !important; }
-        .total-days-col { background: #444; color: var(--accent); font-weight: bold; min-width: 60px; }
-        .cell { cursor: pointer; font-weight: bold; min-width: 32px; transition: 0.2s; }
-        .p { background: rgba(76, 175, 80, 0.6) !important; color: white !important; }
-        .a { background: rgba(244, 67, 54, 0.6) !important; color: white !important; }
-        .input-table { width: 65px; background: #222; border: 1px solid #555; text-align: center; color: var(--accent); border-radius: 4px; }
+        th { background: var(--primary); color: white; }
+        .p { color: #81c784; font-weight: bold; }
+        .a { color: #e57373; font-weight: bold; }
         .final-total { background: #1b1b1b; color: #fff; font-weight: bold; }
-        .farm-footer { margin-top: 15px; padding: 15px; background: var(--primary); border-radius: 8px; font-size: 18px; text-align: center; }
+        .pdf-page { background: white; color: black; padding: 20px; font-family: 'Tajawal', sans-serif; page-break-after: always; }
+        .pdf-page table { border: 1px solid black; color: black; background: white; font-size: 10px; }
+        .pdf-page th, .pdf-page td { border: 1px solid black; padding: 4px; }
+        .no-print { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     </style>
 </head>
 <body>
 
-<div class="app-container">
-    <h2>🌿 إدارة مزارع عالم الزيتون (تخزين دائم)</h2>
+<div class="app-container" id="app">
+    <h2>🌿 إدارة مزارع عالم الزيتون</h2>
     
     <div class="section">
         <div class="controls">
@@ -45,8 +46,8 @@
     <div class="section">
         <div class="controls">
             <select id="monthSelect" onchange="loadFarmData()">
-                <option value="0">يناير</option><option value="1">فبراير</option><option value="2">مارس</option>
-                <option value="3">أبريل</option><option value="4">مايو</option><option value="5">يونيو</option>
+                <option value="0">يناير</option><option value="1">فبراير</option>
+                <option value="2">مارس</option><option value="3">أبريل</option>
             </select>
             <input type="text" id="newWorkerName" placeholder="اسم عامل جديد..." style="flex-grow: 1;">
             <button onclick="addWorker()">👤 إضافة عامل</button>
@@ -60,65 +61,38 @@
         </table>
     </div>
 
-    <div id="farmSummary" class="farm-footer">إجمالي الميزانية: 0 ج.م</div>
-
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
-        <button onclick="exportToExcel()" style="background:#1976d2;">📊 إكسيل</button>
-        <button onclick="sendWhatsApp()" style="background:#25D366;">📱 واتساب</button>
+    <div class="no-print">
+        <div class="btn-grid">
+            <button onclick="sendWhatsAppAttendance()" style="background:#075E54;">📱 واتساب (حضور فقط)</button>
+            <button onclick="sendWhatsAppFinance()" style="background:#25D366;">💰 واتساب (حسابات)</button>
+            <button onclick="exportAllToExcel()" style="background:#1976d2;">📊 إكسيل (كل المزارع)</button>
+            <button onclick="generatePDF()" style="background:#c62828;">📄 تحميل كشف PDF شامل</button>
+        </div>
     </div>
 </div>
 
+<div id="pdf-content" style="display:none;"></div>
+
 <script>
-    // مفتاح تخزين عالمي لا يتغير أبداً
-    const DB_KEY = "SAMI_SAAD_FARM_SYSTEM_FINAL";
-    let db = { farms: {} };
+    const DB_KEY = "SAMI_SAAD_FARM_SYSTEM_V8";
+    let db = JSON.parse(localStorage.getItem(DB_KEY)) || { farms: {} };
 
-    // وظيفة التحميل عند فتح الصفحة
-    function initApp() {
-        const saved = localStorage.getItem(DB_KEY);
-        if (saved) {
-            db = JSON.parse(saved);
-        }
-        updateFarmList();
-        loadFarmData();
-    }
-
-    // وظيفة الحفظ الفوري
-    function forceSave() {
-        localStorage.setItem(DB_KEY, JSON.stringify(db));
-    }
-
-    function updateFarmList() {
-        const select = document.getElementById('farmSelect');
-        const lastSelected = select.value;
-        select.innerHTML = "";
-        Object.keys(db.farms).forEach(f => {
-            let opt = document.createElement('option');
-            opt.value = f; opt.innerText = f;
-            select.appendChild(opt);
-        });
-        if (lastSelected && db.farms[lastSelected]) select.value = lastSelected;
-    }
+    function save() { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
 
     function addFarm() {
         const name = document.getElementById('newFarmName').value.trim();
         if (name && !db.farms[name]) {
             db.farms[name] = { workers: [], attendance: {} };
-            forceSave(); updateFarmList();
-            document.getElementById('farmSelect').value = name;
-            loadFarmData();
-            document.getElementById('newFarmName').value = "";
+            save(); location.reload();
         }
     }
 
     function addWorker() {
         const farm = document.getElementById('farmSelect').value;
         const name = document.getElementById('newWorkerName').value.trim();
-        if (!farm || !name) return;
-        if (!db.farms[farm].workers.includes(name)) {
+        if (farm && name && !db.farms[farm].workers.includes(name)) {
             db.farms[farm].workers.push(name);
-            forceSave(); loadFarmData();
-            document.getElementById('newWorkerName').value = '';
+            save(); loadFarmData();
         }
     }
 
@@ -126,106 +100,82 @@
         const farm = document.getElementById('farmSelect').value;
         const month = document.getElementById('monthSelect').value;
         if (!farm) return;
-        
         const days = new Date(2026, parseInt(month) + 1, 0).getDate();
-        let head = `<tr><th class="worker-name">العامل</th><th class="total-days-col">أيام</th>`;
+        
+        let head = `<tr><th>العامل</th><th>أيام</th>`;
         for(let i=1; i<=days; i++) head += `<th>${i}</th>`;
-        head += `<th>اليومية</th><th>إضافي</th><th class="final-total">الصافي</th></tr>`;
+        head += `<th>اليومية</th><th>إضافي</th><th>الصافي</th></tr>`;
         document.getElementById('tHead').innerHTML = head;
 
-        let bodyHtml = '';
-        let farmTotal = 0;
-        const workers = db.farms[farm].workers || [];
-
-        workers.forEach((w) => {
-            if (!db.farms[farm].attendance[month]) db.farms[farm].attendance[month] = {};
-            if (!db.farms[farm].attendance[month][w]) db.farms[farm].attendance[month][w] = { rate: 0, extra: 0 };
-            
-            const wData = db.farms[farm].attendance[month][w];
-            let attendCount = 0;
+        let body = '';
+        db.farms[farm].workers.forEach(w => {
+            const wData = (db.farms[farm].attendance[month] && db.farms[farm].attendance[month][w]) || {rate:0, extra:0};
+            let count = 0;
             let daysHtml = '';
-
             for(let i=1; i<=days; i++) {
-                const state = wData[i] || "";
-                if(state === "ح") attendCount++;
-                const cls = state === "ح" ? "cell p" : (state === "غ" ? "cell a" : "cell");
-                daysHtml += `<td class="${cls}" onclick="handleCellClick(this, '${w}', ${i})">${state}</td>`;
+                const s = wData[i] || "";
+                if(s === "ح") count++;
+                daysHtml += `<td class="cell ${s==='ح'?'p':'a'}" onclick="toggleStatus('${w}',${i})">${s}</td>`;
             }
-
-            const net = (attendCount * (wData.rate || 0)) + (parseFloat(wData.extra) || 0);
-            farmTotal += net;
-
-            bodyHtml += `<tr>
-                <td class="worker-name" onclick="renameWorker('${w}')">${w}</td>
-                <td class="total-days-col">${attendCount}</td>
-                ${daysHtml}
-                <td><input type="number" class="input-table" value="${wData.rate}" onchange="updateFinance('${w}', 'rate', this.value)"></td>
-                <td><input type="number" class="input-table" value="${wData.extra}" onchange="updateFinance('${w}', 'extra', this.value)"></td>
-                <td class="final-total">${net}</td>
-            </tr>`;
+            body += `<tr><td>${w}</td><td>${count}</td>${daysHtml}
+                <td><input type="number" value="${wData.rate}" onchange="updateVal('${w}','rate',this.value)"></td>
+                <td><input type="number" value="${wData.extra}" onchange="updateVal('${w}','extra',this.value)"></td>
+                <td class="final-total">${(count*wData.rate)+parseFloat(wData.extra)}</td></tr>`;
         });
-        document.getElementById('tBody').innerHTML = bodyHtml;
-        document.getElementById('farmSummary').innerText = `إجمالي ميزانية المزرعة الحالية: ${farmTotal} ج.م`;
+        document.getElementById('tBody').innerHTML = body;
     }
 
-    function handleCellClick(el, worker, day) {
-        const farm = document.getElementById('farmSelect').value;
-        const month = document.getElementById('monthSelect').value;
-        const wData = db.farms[farm].attendance[month][worker];
-        
-        const current = el.innerText;
-        if (current === "") el.innerText = "ح";
-        else if (current === "ح") el.innerText = "غ";
-        else el.innerText = "";
-
-        wData[day] = el.innerText;
-        forceSave(); // حفظ فوري بعد كل نقرة
-        loadFarmData();
+    function toggleStatus(w, d) {
+        const f = document.getElementById('farmSelect').value;
+        const m = document.getElementById('monthSelect').value;
+        if(!db.farms[f].attendance[m]) db.farms[f].attendance[m] = {};
+        if(!db.farms[f].attendance[m][w]) db.farms[f].attendance[m][w] = {rate:0, extra:0};
+        const cur = db.farms[f].attendance[m][w][d] || "";
+        db.farms[f].attendance[m][w][d] = cur === "" ? "ح" : (cur === "ح" ? "غ" : "");
+        save(); loadFarmData();
     }
 
-    function updateFinance(worker, field, val) {
-        const farm = document.getElementById('farmSelect').value;
-        const month = document.getElementById('monthSelect').value;
-        db.farms[farm].attendance[month][worker][field] = parseFloat(val) || 0;
-        forceSave();
-        loadFarmData();
+    function updateVal(w, fld, v) {
+        const f = document.getElementById('farmSelect').value;
+        const m = document.getElementById('monthSelect').value;
+        db.farms[f].attendance[m][w][fld] = parseFloat(v) || 0;
+        save(); loadFarmData();
     }
 
-    function renameWorker(oldName) {
-        const farm = document.getElementById('farmSelect').value;
-        const newName = prompt("تعديل اسم العامل:", oldName);
-        if (newName && newName !== oldName) {
-            const index = db.farms[farm].workers.indexOf(oldName);
-            db.farms[farm].workers[index] = newName;
-            Object.keys(db.farms[farm].attendance).forEach(m => {
-                if (db.farms[farm].attendance[m][oldName]) {
-                    db.farms[farm].attendance[m][newName] = db.farms[farm].attendance[m][oldName];
-                    delete db.farms[farm].attendance[m][oldName];
-                }
-            });
-            forceSave(); loadFarmData();
-        }
-    }
+    function generatePDF() {
+        const pdfCont = document.getElementById('pdf-content');
+        pdfCont.innerHTML = "";
+        pdfCont.style.display = "block";
+        const monthName = document.getElementById('monthSelect').selectedOptions[0].text;
 
-    function sendWhatsApp() {
-        const farm = document.getElementById('farmSelect').value;
-        let msg = `💰 *تقرير مالي: ${farm}*%0A%0A`;
-        const rows = document.querySelectorAll("#tBody tr");
-        rows.forEach(row => {
-            const name = row.querySelector(".worker-name").innerText;
-            const net = row.querySelector(".final-total").innerText;
-            msg += `• ${name}: *${net} ج*%0A`;
+        Object.keys(db.farms).forEach(farm => {
+            let page = `<div class="pdf-page">
+                <h3 style="text-align:center;">كشف حضور وحسابات: ${farm}</h3>
+                <p style="text-align:center;">شهر: ${monthName} 2026</p>
+                <table>${document.getElementById('attendanceTable').innerHTML}</table>
+            </div>`;
+            pdfCont.innerHTML += page;
         });
-        msg += `%0A💵 *${document.getElementById('farmSummary').innerText}*`;
-        window.open(`https://wa.me/?text=${msg}`, '_blank');
+
+        const opt = { margin: 10, filename: `تقارير_عالم_الزيتون_${monthName}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } };
+        html2pdf().set(opt).from(pdfCont).save().then(() => pdfCont.style.display = "none");
     }
 
-    function exportToExcel() {
-        XLSX.writeFile(XLSX.utils.table_to_book(document.getElementById("attendanceTable")), `مزارع_سامي_سعد.xlsx`);
+    function exportAllToExcel() {
+        const wb = XLSX.utils.book_new();
+        Object.keys(db.farms).forEach(f => {
+            const ws = XLSX.utils.table_to_sheet(document.getElementById('attendanceTable'));
+            XLSX.utils.book_append_sheet(wb, ws, f.substring(0,30));
+        });
+        XLSX.writeFile(wb, "كشف_مزارع_الشامل.xlsx");
     }
 
-    // بدء تشغيل التطبيق
-    window.onload = initApp;
+    // تهيئة القوائم
+    (function(){
+        const sel = document.getElementById('farmSelect');
+        Object.keys(db.farms).forEach(f => sel.innerHTML += `<option value="${f}">${f}</option>`);
+        loadFarmData();
+    })();
 </script>
 </body>
 </html>
