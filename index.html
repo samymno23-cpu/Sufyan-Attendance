@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام حسابات عمالة عالم الزيتون</title>
+    <title>نظام إدارة مزارع عالم الزيتون</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -14,23 +14,25 @@
         .section { background: #333; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #444; }
         .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
         select, input, button { padding: 10px; border-radius: 8px; border: none; font-size: 14px; background: #444; color: white; }
-        button { background: var(--primary); cursor: pointer; font-weight: bold; transition: 0.3s; }
+        button { background: var(--primary); cursor: pointer; font-weight: bold; }
         .table-wrapper { overflow-x: auto; border-radius: 10px; border: 1px solid #444; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; min-width: 1100px; background: #2a2a2a; }
         th, td { padding: 8px; text-align: center; border: 1px solid #444; }
         th { background: var(--primary); position: sticky; top: 0; z-index: 3; }
-        .worker-name { position: sticky; right: 0; background: #333; font-weight: bold; min-width: 160px; z-index: 4; }
+        .worker-name { position: sticky; right: 0; background: #333; font-weight: bold; min-width: 180px; z-index: 4; cursor: pointer; border-left: 2px solid var(--accent) !important; }
+        .worker-name:hover { background: #444; }
         .cell { cursor: pointer; font-weight: bold; min-width: 30px; }
         .p { background: rgba(76, 175, 80, 0.4); color: #81c784; }
         .a { background: rgba(244, 67, 54, 0.4); color: #e57373; }
-        .input-table { width: 60px; background: #222; border: 1px solid #555; text-align: center; color: var(--accent); }
-        .final-total { background: #444; color: #fff; font-weight: bold; }
+        .input-table { width: 65px; background: #222; border: 1px solid #555; text-align: center; color: var(--accent); border-radius: 4px; }
+        .final-total { background: #1b1b1b; color: #fff; font-weight: bold; }
+        .farm-footer { margin-top: 15px; padding: 15px; background: var(--primary); border-radius: 8px; font-size: 18px; font-weight: bold; text-align: center; color: white; }
     </style>
 </head>
 <body>
 
 <div class="app-container">
-    <h2>🌿 نظام حسابات العمالة - عالم الزيتون</h2>
+    <h2>🌿 نظام إدارة العمالة - عالم الزيتون</h2>
     
     <div class="section">
         <div class="controls">
@@ -43,8 +45,8 @@
     <div class="section">
         <div class="controls">
             <select id="monthSelect" onchange="loadFarmData()">
-                <option value="0">يناير</option><option value="1">فبراير</option>
-                <option value="2" selected>مارس</option>
+                <option value="0">يناير</option><option value="1">فبراير</option><option value="2">مارس</option>
+                <option value="3">أبريل</option><option value="4">مايو</option><option value="5">يونيو</option>
             </select>
             <input type="text" id="newWorkerName" placeholder="اسم عامل جديد..." style="flex-grow: 1;">
             <button onclick="addWorker()">👤 إضافة عامل</button>
@@ -58,6 +60,8 @@
         </table>
     </div>
 
+    <div id="farmSummary" class="farm-footer">إجمالي ميزانية المزرعة الحالية: 0 ج.م</div>
+
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
         <button onclick="exportToExcel()" style="background:#1976d2;">📊 إكسيل (حسابات)</button>
         <button onclick="sendWhatsApp()" style="background:#25D366;">📱 واتساب (تقرير مالي)</button>
@@ -65,7 +69,7 @@
 </div>
 
 <script>
-    let db = JSON.parse(localStorage.getItem('olive_accounting_v4')) || { farms: {} };
+    let db = JSON.parse(localStorage.getItem('olive_system_pro_v5')) || { farms: {} };
 
     function updateFarmList() {
         const select = document.getElementById('farmSelect');
@@ -80,7 +84,7 @@
     function addFarm() {
         const name = document.getElementById('newFarmName').value.trim();
         if (name && !db.farms[name]) {
-            db.farms[name] = { workers: {}, list: [] };
+            db.farms[name] = { workers: [], attendance: {} };
             save(); updateFarmList();
             document.getElementById('farmSelect').value = name;
             loadFarmData();
@@ -91,8 +95,29 @@
         const farm = document.getElementById('farmSelect').value;
         const name = document.getElementById('newWorkerName').value.trim();
         if (!farm || !name) return;
-        if (!db.farms[farm].list.includes(name)) {
-            db.farms[farm].list.push(name);
+        if (!db.farms[farm].workers.includes(name)) {
+            db.farms[farm].workers.push(name);
+            save(); loadFarmData();
+            document.getElementById('newWorkerName').value = '';
+        }
+    }
+
+    function editWorkerName(oldName) {
+        const farm = document.getElementById('farmSelect').value;
+        const newName = prompt("تعديل اسم العامل:", oldName);
+        if (newName && newName !== oldName) {
+            // تحديث الاسم في القائمة
+            const index = db.farms[farm].workers.indexOf(oldName);
+            db.farms[farm].workers[index] = newName;
+            
+            // نقل بيانات الحضور والرواتب للاسم الجديد
+            const months = Object.keys(db.farms[farm].attendance || {});
+            months.forEach(m => {
+                if (db.farms[farm].attendance[m][oldName]) {
+                    db.farms[farm].attendance[m][newName] = db.farms[farm].attendance[m][oldName];
+                    delete db.farms[farm].attendance[m][oldName];
+                }
+            });
             save(); loadFarmData();
         }
     }
@@ -103,18 +128,21 @@
         if (!farm) return;
         
         const days = new Date(2026, parseInt(month) + 1, 0).getDate();
-        let head = `<tr><th class="worker-name">العامل</th>`;
+        let head = `<tr><th class="worker-name">العامل (اضغط للتعديل)</th>`;
         for(let i=1; i<=days; i++) head += `<th>${i}</th>`;
         head += `<th>اليومية</th><th>إضافي</th><th class="final-total">الصافي</th></tr>`;
         document.getElementById('tHead').innerHTML = head;
 
         let body = '';
-        db.farms[farm].list.forEach((w) => {
-            const wData = (db.farms[farm][month] && db.farms[farm][month][w]) || {};
-            const rate = wData.rate || 0;
-            const extra = wData.extra || 0;
+        let farmTotal = 0;
+        const workers = db.farms[farm].workers || [];
+
+        workers.forEach((w) => {
+            if (!db.farms[farm].attendance) db.farms[farm].attendance = {};
+            if (!db.farms[farm].attendance[month]) db.farms[farm].attendance[month] = {};
+            const wData = db.farms[farm].attendance[month][w] || {};
             
-            body += `<tr><td class="worker-name">${w}</td>`;
+            body += `<tr><td class="worker-name" onclick="editWorkerName('${w}')">${w}</td>`;
             let attendCount = 0;
             for(let i=1; i<=days; i++) {
                 const state = wData[i] || "";
@@ -122,54 +150,46 @@
                 const cls = state === "ح" ? "cell p" : (state === "غ" ? "cell a" : "cell");
                 body += `<td class="${cls}" onclick="toggle(this, '${w}', ${i})">${state}</td>`;
             }
+            const rate = wData.rate || 0;
+            const extra = wData.extra || 0;
             body += `<td><input type="number" class="input-table" value="${rate}" onchange="updateMoney('${w}', 'rate', this.value)"></td>`;
             body += `<td><input type="number" class="input-table" value="${extra}" onchange="updateMoney('${w}', 'extra', this.value)"></td>`;
-            const total = (attendCount * rate) + parseFloat(extra);
-            body += `<td class="final-total" id="net-${w}">${total}</td></tr>`;
+            const net = (attendCount * rate) + parseFloat(extra);
+            farmTotal += net;
+            body += `<td class="final-total" id="net-${w}">${net}</td></tr>`;
         });
         document.getElementById('tBody').innerHTML = body;
+        document.getElementById('farmSummary').innerText = `إجمالي ميزانية المزرعة الحالية: ${farmTotal} ج.م`;
     }
 
     function toggle(el, worker, day) {
         const farm = document.getElementById('farmSelect').value;
         const month = document.getElementById('monthSelect').value;
-        if (!db.farms[farm][month]) db.farms[farm][month] = {};
-        if (!db.farms[farm][month][worker]) db.farms[farm][month][worker] = {};
+        const wData = db.farms[farm].attendance[month][worker];
         
         el.innerText = el.innerText === "" ? "ح" : (el.innerText === "ح" ? "غ" : "");
         el.className = el.innerText === "ح" ? "cell p" : (el.innerText === "غ" ? "cell a" : "cell");
-        db.farms[farm][month][worker][day] = el.innerText;
-        save(); calculateNet(worker);
+        wData[day] = el.innerText;
+        save(); loadFarmData();
     }
 
     function updateMoney(worker, field, val) {
         const farm = document.getElementById('farmSelect').value;
         const month = document.getElementById('monthSelect').value;
-        if (!db.farms[farm][month]) db.farms[farm][month] = {};
-        if (!db.farms[farm][month][worker]) db.farms[farm][month][worker] = {};
-        db.farms[farm][month][worker][field] = parseFloat(val) || 0;
-        save(); calculateNet(worker);
+        db.farms[farm].attendance[month][worker][field] = parseFloat(val) || 0;
+        save(); loadFarmData();
     }
 
-    function calculateNet(worker) {
-        const farm = document.getElementById('farmSelect').value;
-        const month = document.getElementById('monthSelect').value;
-        const wData = db.farms[farm][month][worker];
-        let attend = 0;
-        Object.keys(wData).forEach(k => { if(wData[k] === "ح") attend++; });
-        const net = (attend * (wData.rate || 0)) + (parseFloat(wData.extra) || 0);
-        document.getElementById(`net-${worker}`).innerText = net;
-    }
-
-    function save() { localStorage.setItem('olive_accounting_v4', JSON.stringify(db)); }
+    function save() { localStorage.setItem('olive_system_pro_v5', JSON.stringify(db)); }
 
     function sendWhatsApp() {
         const farm = document.getElementById('farmSelect').value;
         let msg = `💰 *كشف حساب عمالة: ${farm}*%0A%0A`;
-        db.farms[farm].list.forEach(w => {
+        db.farms[farm].workers.forEach(w => {
             const net = document.getElementById(`net-${w}`).innerText;
             msg += `• ${w}: *${net} جنيه*%0A`;
         });
+        msg += `%0A💵 *الإجمالي العام: ${document.getElementById('farmSummary').innerText.split(':')[1].trim()}*`;
         window.open(`https://wa.me/?text=${msg}`, '_blank');
     }
 
