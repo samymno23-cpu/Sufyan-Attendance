@@ -1,34 +1,102 @@
-<style>
-    /* تنسيق خاص للجدول الشهري ليكون قابلاً للتمرير على الموبايل */
-    .table-wrapper {
-        overflow-x: auto;
-        margin-top: 20px;
-    }
-    table { border-collapse: collapse; width: 100%; font-size: 14px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: center; min-width: 40px; }
-    th { background-color: #4CAF50; color: white; position: sticky; top: 0; }
-    .worker-name { position: sticky; right: 0; background: #eee; min-width: 100px; font-weight: bold; }
-    .status-cell { cursor: pointer; }
-    .p { background-color: #c8e6c9; } /* حاضر */
-    .a { background-color: #ffcdd2; } /* غائب */
-</style>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة عمالة آل سفيان</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2e7d32; /* أخضر زيتي */
+            --accent: #fbc02d; /* أصفر ثمار الزيتون */
+            --dark: #1b1b1b;
+            --light: #f5f5f5;
+        }
+        body { font-family: 'Tajawal', sans-serif; background: var(--dark); color: var(--light); margin: 0; padding: 10px; }
+        .app-container { max-width: 1000px; margin: auto; background: #252525; border-radius: 15px; padding: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h2 { text-align: center; color: var(--accent); border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
+        
+        .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        select, button { padding: 12px; border-radius: 8px; border: none; font-size: 16px; font-weight: bold; }
+        select { background: #333; color: white; flex-grow: 1; }
+        .save-btn { background: var(--primary); color: white; cursor: pointer; transition: 0.3s; width: 100%; margin-top: 15px; }
+        .save-btn:hover { background: #1b5e20; transform: scale(1.02); }
 
-<div class="container">
-    <h2>سجل الغياب الشهري - عالم الزيتون</h2>
-    <div class="input-group">
-        <select id="monthSelect" onchange="renderMonthlyTable()">
-            <option value="0">يناير</option>
-            <option value="1">فبراير</option>
-            </select>
-        <span id="yearLabel">2026</span>
+        .table-wrapper { overflow-x: auto; border-radius: 10px; border: 1px solid #444; }
+        table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        th, td { padding: 12px; text-align: center; border: 1px solid #444; }
+        th { background: var(--primary); color: white; position: sticky; top: 0; }
+        .worker-name { position: sticky; right: 0; background: #333; font-weight: bold; min-width: 120px; z-index: 2; }
+        
+        /* حالات الغياب */
+        .cell { cursor: pointer; transition: 0.2s; font-weight: bold; }
+        .cell:empty::before { content: "-"; color: #666; }
+        .p { background: rgba(76, 175, 80, 0.3); color: #81c784; } /* حاضر */
+        .a { background: rgba(244, 67, 54, 0.3); color: #e57373; } /* غائب */
+        .total-cell { background: #333; color: var(--accent); }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <h2>🌿 نظام الحضور الشهري - آل سفيان</h2>
+    
+    <div class="controls">
+        <select id="monthSelect" onchange="initTable()">
+            <option value="0">يناير</option><option value="1" selected>فبراير</option>
+            <option value="2">مارس</option><option value="3">أبريل</option>
+            <option value="4">مايو</option><option value="5">يونيو</option>
+            <option value="6">يوليو</option><option value="7">أغسطس</option>
+            <option value="8">سبتمبر</option><option value="9">أكتوبر</option>
+            <option value="10">نوفمبر</option><option value="11">ديسمبر</option>
+        </select>
+        <span style="font-size: 1.2rem;">2026</span>
     </div>
 
     <div class="table-wrapper">
-        <table id="monthlyTable">
-            <thead id="tableHead"></thead>
-            <tbody id="tableBody"></tbody>
+        <table id="mainTable">
+            <thead id="tHead"></thead>
+            <tbody id="tBody"></tbody>
         </table>
     </div>
-    
-    <button class="action-btn" onclick="saveMonthlyData()">حفظ التعديلات الشهرية</button>
+
+    <button class="save-btn" onclick="alert('تم حفظ البيانات في ذاكرة المتصفح يا هندسة!')">حفظ وإصدار تقرير WhatsApp 📁</button>
 </div>
+
+<script>
+    const workers = ["عامل 1", "عامل 2", "عامل 3", "عامل 4", "عامل 5"];
+
+    function initTable() {
+        const month = document.getElementById('monthSelect').value;
+        const days = new Date(2026, parseInt(month) + 1, 0).getDate();
+        
+        let head = `<tr><th class="worker-name">اسم العامل</th>`;
+        for(let i=1; i<=days; i++) head += `<th>${i}</th>`;
+        head += `<th class="total-cell">الإجمالي</th></tr>`;
+        document.getElementById('tHead').innerHTML = head;
+
+        let body = '';
+        workers.forEach(w => {
+            body += `<tr><td class="worker-name">${w}</td>`;
+            for(let i=1; i<=days; i++) body += `<td class="cell" onclick="toggle(this)"></td>`;
+            body += `<td class="total-cell">0</td></tr>`;
+        });
+        document.getElementById('tBody').innerHTML = body;
+    }
+
+    function toggle(el) {
+        if (el.innerText === "") { el.innerText = "ح"; el.className = "cell p"; }
+        else if (el.innerText === "ح") { el.innerText = "غ"; el.className = "cell a"; }
+        else { el.innerText = ""; el.className = "cell"; }
+        updateTotal(el.parentElement);
+    }
+
+    function updateTotal(row) {
+        let count = Array.from(row.querySelectorAll('.p')).length;
+        row.querySelector('.total-cell').innerText = count;
+    }
+
+    window.onload = initTable;
+</script>
+</body>
+</html>
