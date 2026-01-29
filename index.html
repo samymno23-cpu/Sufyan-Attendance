@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام إدارة مزارع عالم الزيتون - النسخة الاحترافية</title>
+    <title>نظام إدارة عمالة عالم الزيتون - المهندس سامي سعد</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -17,23 +17,25 @@
         select, input, button { padding: 10px; border-radius: 8px; border: none; font-size: 14px; background: #444; color: white; }
         button { background: var(--primary); cursor: pointer; font-weight: bold; }
         .table-wrapper { overflow-x: auto; border-radius: 10px; border: 1px solid #444; margin-top: 10px; }
-        table { width: 100%; border-collapse: collapse; min-width: 1250px; background: #2a2a2a; }
+        table { width: 100%; border-collapse: collapse; min-width: 1200px; background: #2a2a2a; }
         th, td { padding: 8px; text-align: center; border: 1px solid #444; }
-        th { background: var(--primary); color: white; }
-        .p { color: #81c784; font-weight: bold; }
-        .a { color: #e57373; font-weight: bold; }
+        th { background: var(--primary); position: sticky; top: 0; z-index: 3; }
+        .worker-name { position: sticky; right: 0; background: #333; font-weight: bold; min-width: 170px; z-index: 4; cursor: pointer; }
+        .cell { cursor: pointer; font-weight: bold; min-width: 32px; }
+        .p { background: rgba(76, 175, 80, 0.6); color: white; }
+        .a { background: rgba(244, 67, 54, 0.6); color: white; }
+        .input-table { width: 60px; background: #222; border: 1px solid #555; text-align: center; color: var(--accent); }
         .final-total { background: #1b1b1b; color: #fff; font-weight: bold; }
-        .pdf-page { background: white; color: black; padding: 20px; font-family: 'Tajawal', sans-serif; page-break-after: always; }
-        .pdf-page table { border: 1px solid black; color: black; background: white; font-size: 10px; }
-        .pdf-page th, .pdf-page td { border: 1px solid black; padding: 4px; }
         .no-print { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
-        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .pdf-page { background: white; color: black; padding: 20px; page-break-after: always; }
+        .pdf-page table { width: 100%; border-collapse: collapse; border: 1px solid black; }
+        .pdf-page th, .pdf-page td { border: 1px solid black; padding: 5px; font-size: 10px; color: black; }
     </style>
 </head>
 <body>
 
-<div class="app-container" id="app">
-    <h2>🌿 إدارة مزارع عالم الزيتون</h2>
+<div class="app-container">
+    <h2>🌿 نظام إدارة عمالة عالم الزيتون</h2>
     
     <div class="section">
         <div class="controls">
@@ -62,65 +64,85 @@
     </div>
 
     <div class="no-print">
-        <div class="btn-grid">
-            <button onclick="sendWhatsAppAttendance()" style="background:#075E54;">📱 واتساب (حضور فقط)</button>
-            <button onclick="sendWhatsAppFinance()" style="background:#25D366;">💰 واتساب (حسابات)</button>
-            <button onclick="exportAllToExcel()" style="background:#1976d2;">📊 إكسيل (كل المزارع)</button>
-            <button onclick="generatePDF()" style="background:#c62828;">📄 تحميل كشف PDF شامل</button>
-        </div>
+        <button onclick="sendWhatsAppAttendance()" style="background:#075E54;">📱 واتساب (الحضور فقط)</button>
+        <button onclick="exportAllToExcel()" style="background:#1976d2;">📊 إكسيل (كل المزارع)</button>
+        <button onclick="generatePDF()" style="background:#c62828;">📄 تحميل PDF شامل للمزارع</button>
     </div>
 </div>
 
-<div id="pdf-content" style="display:none;"></div>
+<div id="pdf-container" style="display:none;"></div>
 
 <script>
-    const DB_KEY = "SAMI_SAAD_FARM_SYSTEM_V8";
-    let db = JSON.parse(localStorage.getItem(DB_KEY)) || { farms: {} };
+    const STORAGE_KEY = "OLIVE_FARM_FINAL_V10";
+    // الأسامي المبدئية التي طلبتها يا هندسة
+    let db = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
+        farms: {
+            "مزرعة الـ 700ف": { workers: ["محمد أحمد", "أحمد علي", "محمود حسن", "سعيد إبراهيم"], attendance: {} }
+        }
+    };
 
-    function save() { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+    function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); }
+
+    function updateFarmList() {
+        const sel = document.getElementById('farmSelect');
+        const current = sel.value;
+        sel.innerHTML = "";
+        Object.keys(db.farms).forEach(f => {
+            sel.innerHTML += `<option value="${f}">${f}</option>`;
+        });
+        if(current && db.farms[current]) sel.value = current;
+    }
 
     function addFarm() {
         const name = document.getElementById('newFarmName').value.trim();
-        if (name && !db.farms[name]) {
+        if(name && !db.farms[name]) {
             db.farms[name] = { workers: [], attendance: {} };
-            save(); location.reload();
+            save(); updateFarmList(); loadFarmData();
         }
     }
 
     function addWorker() {
-        const farm = document.getElementById('farmSelect').value;
-        const name = document.getElementById('newWorkerName').value.trim();
-        if (farm && name && !db.farms[farm].workers.includes(name)) {
-            db.farms[farm].workers.push(name);
+        const f = document.getElementById('farmSelect').value;
+        const n = document.getElementById('newWorkerName').value.trim();
+        if(f && n && !db.farms[f].workers.includes(n)) {
+            db.farms[f].workers.push(n);
             save(); loadFarmData();
+            document.getElementById('newWorkerName').value = "";
         }
     }
 
     function loadFarmData() {
-        const farm = document.getElementById('farmSelect').value;
-        const month = document.getElementById('monthSelect').value;
-        if (!farm) return;
-        const days = new Date(2026, parseInt(month) + 1, 0).getDate();
+        const f = document.getElementById('farmSelect').value;
+        const m = document.getElementById('monthSelect').value;
+        if(!f) return;
+        const days = new Date(2026, parseInt(m) + 1, 0).getDate();
         
-        let head = `<tr><th>العامل</th><th>أيام</th>`;
+        let head = `<tr><th class="worker-name">العامل</th><th>أيام</th>`;
         for(let i=1; i<=days; i++) head += `<th>${i}</th>`;
         head += `<th>اليومية</th><th>إضافي</th><th>الصافي</th></tr>`;
         document.getElementById('tHead').innerHTML = head;
 
         let body = '';
-        db.farms[farm].workers.forEach(w => {
-            const wData = (db.farms[farm].attendance[month] && db.farms[farm].attendance[month][w]) || {rate:0, extra:0};
+        db.farms[f].workers.forEach(w => {
+            if(!db.farms[f].attendance[m]) db.farms[f].attendance[m] = {};
+            if(!db.farms[f].attendance[m][w]) db.farms[f].attendance[m][w] = { rate: 0, extra: 0 };
+            const data = db.farms[f].attendance[m][w];
+            
             let count = 0;
             let daysHtml = '';
             for(let i=1; i<=days; i++) {
-                const s = wData[i] || "";
+                const s = data[i] || "";
                 if(s === "ح") count++;
                 daysHtml += `<td class="cell ${s==='ح'?'p':'a'}" onclick="toggleStatus('${w}',${i})">${s}</td>`;
             }
-            body += `<tr><td>${w}</td><td>${count}</td>${daysHtml}
-                <td><input type="number" value="${wData.rate}" onchange="updateVal('${w}','rate',this.value)"></td>
-                <td><input type="number" value="${wData.extra}" onchange="updateVal('${w}','extra',this.value)"></td>
-                <td class="final-total">${(count*wData.rate)+parseFloat(wData.extra)}</td></tr>`;
+            body += `<tr>
+                <td class="worker-name">${w}</td>
+                <td>${count}</td>
+                ${daysHtml}
+                <td><input type="number" class="input-table" value="${data.rate}" onchange="updateVal('${w}','rate',this.value)"></td>
+                <td><input type="number" class="input-table" value="${data.extra}" onchange="updateVal('${w}','extra',this.value)"></td>
+                <td class="final-total">${(count * data.rate) + parseFloat(data.extra)}</td>
+            </tr>`;
         });
         document.getElementById('tBody').innerHTML = body;
     }
@@ -128,54 +150,24 @@
     function toggleStatus(w, d) {
         const f = document.getElementById('farmSelect').value;
         const m = document.getElementById('monthSelect').value;
-        if(!db.farms[f].attendance[m]) db.farms[f].attendance[m] = {};
-        if(!db.farms[f].attendance[m][w]) db.farms[f].attendance[m][w] = {rate:0, extra:0};
         const cur = db.farms[f].attendance[m][w][d] || "";
         db.farms[f].attendance[m][w][d] = cur === "" ? "ح" : (cur === "ح" ? "غ" : "");
         save(); loadFarmData();
     }
 
-    function updateVal(w, fld, v) {
+    function updateVal(w, fld, val) {
         const f = document.getElementById('farmSelect').value;
         const m = document.getElementById('monthSelect').value;
-        db.farms[f].attendance[m][w][fld] = parseFloat(v) || 0;
+        db.farms[f].attendance[m][w][fld] = parseFloat(val) || 0;
         save(); loadFarmData();
     }
 
     function generatePDF() {
-        const pdfCont = document.getElementById('pdf-content');
-        pdfCont.innerHTML = "";
-        pdfCont.style.display = "block";
-        const monthName = document.getElementById('monthSelect').selectedOptions[0].text;
+        const cont = document.getElementById('pdf-container');
+        cont.innerHTML = ""; cont.style.display = "block";
+        const mName = document.getElementById('monthSelect').selectedOptions[0].text;
 
-        Object.keys(db.farms).forEach(farm => {
-            let page = `<div class="pdf-page">
-                <h3 style="text-align:center;">كشف حضور وحسابات: ${farm}</h3>
-                <p style="text-align:center;">شهر: ${monthName} 2026</p>
-                <table>${document.getElementById('attendanceTable').innerHTML}</table>
-            </div>`;
-            pdfCont.innerHTML += page;
-        });
-
-        const opt = { margin: 10, filename: `تقارير_عالم_الزيتون_${monthName}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } };
-        html2pdf().set(opt).from(pdfCont).save().then(() => pdfCont.style.display = "none");
-    }
-
-    function exportAllToExcel() {
-        const wb = XLSX.utils.book_new();
         Object.keys(db.farms).forEach(f => {
-            const ws = XLSX.utils.table_to_sheet(document.getElementById('attendanceTable'));
-            XLSX.utils.book_append_sheet(wb, ws, f.substring(0,30));
-        });
-        XLSX.writeFile(wb, "كشف_مزارع_الشامل.xlsx");
-    }
-
-    // تهيئة القوائم
-    (function(){
-        const sel = document.getElementById('farmSelect');
-        Object.keys(db.farms).forEach(f => sel.innerHTML += `<option value="${f}">${f}</option>`);
-        loadFarmData();
-    })();
-</script>
-</body>
-</html>
+            const tempTable = document.getElementById('attendanceTable').cloneNode(true);
+            // إزالة خانات الإدخال لتحسين شكل الـ PDF
+            tempTable.querySelectorAll
