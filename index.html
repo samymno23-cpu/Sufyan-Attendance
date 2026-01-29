@@ -3,72 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إدارة عمالة آل سفيان</title>
+    <title>إدارة عمالة عالم الزيتون</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        :root {
-            --primary: #2e7d32; /* أخضر زيتي */
-            --accent: #fbc02d; /* أصفر ثمار الزيتون */
-            --dark: #1b1b1b;
-            --light: #f5f5f5;
-        }
+        :root { --primary: #2e7d32; --accent: #fbc02d; --dark: #1b1b1b; --light: #f5f5f5; }
         body { font-family: 'Tajawal', sans-serif; background: var(--dark); color: var(--light); margin: 0; padding: 10px; }
-        .app-container { max-width: 1000px; margin: auto; background: #252525; border-radius: 15px; padding: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .app-container { max-width: 1200px; margin: auto; background: #252525; border-radius: 15px; padding: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         h2 { text-align: center; color: var(--accent); border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
-        
-        .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
-        select, button { padding: 12px; border-radius: 8px; border: none; font-size: 16px; font-weight: bold; }
-        select { background: #333; color: white; flex-grow: 1; }
-        .save-btn { background: var(--primary); color: white; cursor: pointer; transition: 0.3s; width: 100%; margin-top: 15px; }
-        .save-btn:hover { background: #1b5e20; transform: scale(1.02); }
-
-        .table-wrapper { overflow-x: auto; border-radius: 10px; border: 1px solid #444; }
-        table { width: 100%; border-collapse: collapse; min-width: 800px; }
-        th, td { padding: 12px; text-align: center; border: 1px solid #444; }
-        th { background: var(--primary); color: white; position: sticky; top: 0; }
-        .worker-name { position: sticky; right: 0; background: #333; font-weight: bold; min-width: 120px; z-index: 2; }
-        
-        /* حالات الغياب */
-        .cell { cursor: pointer; transition: 0.2s; font-weight: bold; }
-        .cell:empty::before { content: "-"; color: #666; }
-        .p { background: rgba(76, 175, 80, 0.3); color: #81c784; } /* حاضر */
-        .a { background: rgba(244, 67, 54, 0.3); color: #e57373; } /* غائب */
-        .total-cell { background: #333; color: var(--accent); }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+        select, input, button { padding: 10px; border-radius: 8px; border: none; font-size: 14px; background: #333; color: white; }
+        button { background: var(--primary); cursor: pointer; font-weight: bold; transition: 0.3s; }
+        button:hover { opacity: 0.8; }
+        .table-wrapper { overflow-x: auto; border-radius: 10px; border: 1px solid #444; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; min-width: 1000px; }
+        th, td { padding: 10px; text-align: center; border: 1px solid #444; }
+        th { background: var(--primary); position: sticky; top: 0; z-index: 3; }
+        .worker-name { position: sticky; right: 0; background: #333; font-weight: bold; min-width: 150px; z-index: 4; display: flex; justify-content: space-between; align-items: center; }
+        .del-btn { color: #e57373; cursor: pointer; font-size: 14px; margin-right: 8px; }
+        .cell { cursor: pointer; font-weight: bold; min-width: 35px; transition: 0.2s; }
+        .p { background: rgba(76, 175, 80, 0.4); color: #81c784; }
+        .a { background: rgba(244, 67, 54, 0.4); color: #e57373; }
+        .total-cell { background: #333; color: var(--accent); font-weight: bold; position: sticky; left: 0; z-index: 4; }
+        .export-btn { background: #1976d2; width: 100%; margin-top: 10px; }
     </style>
 </head>
 <body>
 
 <div class="app-container">
-    <h2>🌿 نظام الحضور الشهري - آل سفيان</h2>
+    <h2>🌿 نظام إدارة العمالة - عالم الزيتون</h2>
     
     <div class="controls">
-        <select id="monthSelect" onchange="initTable()">
-            <option value="0">يناير</option><option value="1" selected>فبراير</option>
+        <select id="farmSelect" onchange="loadFarmData()">
+            <option value="wadi_elnatrun">مزرعة وادي النطرون</option>
+            <option value="el_alamein">مزرعة العلمين</option>
+            <option value="el_mughra">مزرعة المغرة</option>
+        </select>
+        <select id="monthSelect" onchange="loadFarmData()">
+            <option value="0">يناير</option><option value="1">فبراير</option>
             <option value="2">مارس</option><option value="3">أبريل</option>
             <option value="4">مايو</option><option value="5">يونيو</option>
             <option value="6">يوليو</option><option value="7">أغسطس</option>
             <option value="8">سبتمبر</option><option value="9">أكتوبر</option>
             <option value="10">نوفمبر</option><option value="11">ديسمبر</option>
         </select>
-        <span style="font-size: 1.2rem;">2026</span>
+        <input type="text" id="newWorkerName" placeholder="اكتب اسم العامل هنا...">
+        <button onclick="addWorker()">➕ إضافة للعينة</button>
     </div>
 
     <div class="table-wrapper">
-        <table id="mainTable">
+        <table id="attendanceTable">
             <thead id="tHead"></thead>
             <tbody id="tBody"></tbody>
         </table>
     </div>
 
-    <button class="save-btn" onclick="alert('تم حفظ البيانات في ذاكرة المتصفح يا هندسة!')">حفظ وإصدار تقرير WhatsApp 📁</button>
+    <button onclick="saveAll()" style="width:100%; margin-top:15px;">💾 حفظ البيانات الحالية</button>
+    <button class="export-btn" onclick="exportToExcel()">📊 تصدير كشف المزرعة إلى Excel</button>
 </div>
 
 <script>
-    const workers = ["عامل 1", "عامل 2", "عامل 3", "عامل 4", "عامل 5"];
+    let farmData = JSON.parse(localStorage.getItem('olive_world_attendance')) || {};
 
-    function initTable() {
+    function addWorker() {
+        const name = document.getElementById('newWorkerName').value.trim();
+        const farm = document.getElementById('farmSelect').value;
+        if (!name) return;
+        
+        if (!farmData[farm]) farmData[farm] = { workers: [] };
+        if (!farmData[farm].workers.includes(name)) {
+            farmData[farm].workers.push(name);
+            saveAll(false);
+            loadFarmData();
+            document.getElementById('newWorkerName').value = '';
+        }
+    }
+
+    function removeWorker(name) {
+        const farm = document.getElementById('farmSelect').value;
+        if(confirm(`هل أنت متأكد من حذف العامل: ${name}؟`)) {
+            farmData[farm].workers = farmData[farm].workers.filter(w => w !== name);
+            saveAll(false);
+            loadFarmData();
+        }
+    }
+
+    function loadFarmData() {
+        const farm = document.getElementById('farmSelect').value;
         const month = document.getElementById('monthSelect').value;
-        const days = new Date(2026, parseInt(month) + 1, 0).getDate();
+        const year = 2026;
+        const days = new Date(year, parseInt(month) + 1, 0).getDate();
         
         let head = `<tr><th class="worker-name">اسم العامل</th>`;
         for(let i=1; i<=days; i++) head += `<th>${i}</th>`;
@@ -76,27 +100,58 @@
         document.getElementById('tHead').innerHTML = head;
 
         let body = '';
-        workers.forEach(w => {
-            body += `<tr><td class="worker-name">${w}</td>`;
-            for(let i=1; i<=days; i++) body += `<td class="cell" onclick="toggle(this)"></td>`;
-            body += `<td class="total-cell">0</td></tr>`;
+        const workers = (farmData[farm] && farmData[farm].workers) ? farmData[farm].workers : [];
+        
+        workers.forEach((w, wIdx) => {
+            body += `<tr><td class="worker-name">${w} <span class="del-btn" onclick="removeWorker('${w}')">🗑️</span></td>`;
+            for(let i=1; i<=days; i++) {
+                const state = (farmData[farm] && farmData[farm][month] && farmData[farm][month][w] && farmData[farm][month][w][i]) || "";
+                const cls = state === "ح" ? "cell p" : (state === "غ" ? "cell a" : "cell");
+                body += `<td class="${cls}" onclick="toggle(this, '${w}', ${i})">${state}</td>`;
+            }
+            body += `<td class="total-cell" id="total-${wIdx}">0</td></tr>`;
         });
         document.getElementById('tBody').innerHTML = body;
+        workers.forEach((w, i) => updateRowTotal(document.getElementById(`total-${i}`).parentElement));
     }
 
-    function toggle(el) {
+    function toggle(el, worker, day) {
+        const farm = document.getElementById('farmSelect').value;
+        const month = document.getElementById('monthSelect').value;
+        if (!farmData[farm][month]) farmData[farm][month] = {};
+        if (!farmData[farm][month][worker]) farmData[farm][month][worker] = {};
+
         if (el.innerText === "") { el.innerText = "ح"; el.className = "cell p"; }
         else if (el.innerText === "ح") { el.innerText = "غ"; el.className = "cell a"; }
         else { el.innerText = ""; el.className = "cell"; }
-        updateTotal(el.parentElement);
+        
+        farmData[farm][month][worker][day] = el.innerText;
+        updateRowTotal(el.parentElement);
     }
 
-    function updateTotal(row) {
+    function updateRowTotal(row) {
         let count = Array.from(row.querySelectorAll('.p')).length;
         row.querySelector('.total-cell').innerText = count;
     }
 
-    window.onload = initTable;
+    function saveAll(showAlert = true) {
+        localStorage.setItem('olive_world_attendance', JSON.stringify(farmData));
+        if (showAlert) alert("تم حفظ البيانات بنجاح يا هندسة!");
+    }
+
+    function exportToExcel() {
+        const table = document.getElementById("attendanceTable");
+        const farmName = document.getElementById("farmSelect").selectedOptions[0].text;
+        const monthName = document.getElementById("monthSelect").selectedOptions[0].text;
+        
+        // تحويل الجدول إلى بيانات Excel مع حذف أيقونة الحذف من النص
+        const ws = XLSX.utils.table_to_sheet(table);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "الحضور");
+        XLSX.writeFile(wb, `كشف_حضور_${farmName}_${monthName}_2026.xlsx`);
+    }
+
+    window.onload = loadFarmData;
 </script>
 </body>
 </html>
